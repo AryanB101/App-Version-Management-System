@@ -4,6 +4,7 @@ import model.App
 import model.AppVersion
 import model.Device
 import model.RolloutStrategy
+import model.TaskMode
 
 object RolloutService {
 
@@ -28,29 +29,24 @@ object RolloutService {
         targetVersionCode: String,
         devices: List<Device>,
         strategy: RolloutStrategy,
-        mode: String
+        mode: TaskMode
     ) {
         require(devices.isNotEmpty()) { "Device list is empty" }
 
         val targetVersion = app.getVersion(targetVersionCode)
             ?: throw IllegalArgumentException("Target version not found: $targetVersionCode")
 
-        if (mode.lowercase() !in setOf("install", "update")) {
-            println("Invalid release mode: $mode")
-            return
-        }
-
         for (device in devices) {
             if (!isAppVersionSupported(app, targetVersionCode, device, strategy)) continue
 
-            when (mode.lowercase()) {
-                "install" -> {
-                    TaskExecutor.executeTask(mode = "install", device = device, toVersion = targetVersion)
+            when (mode) {
+                TaskMode.INSTALL -> {
+                    TaskExecutor.executeTask(TaskMode.INSTALL, app, device)
                 }
-                "update" -> {
+                TaskMode.UPDATE -> {
                     val fromVersion = app.getAllVersions().firstOrNull()
                     if (fromVersion != null) {
-                        TaskExecutor.executeTask(mode = "update", device = device, fromVersion = fromVersion, toVersion = targetVersion)
+                        TaskExecutor.executeTask(TaskMode.UPDATE, app, device, installedVersionCode = fromVersion.versionCode)
                     } else {
                         println("No previous version found for update")
                     }
@@ -58,7 +54,6 @@ object RolloutService {
             }
         }
     }
-
 
     fun isAppVersionSupported(
         app: App,

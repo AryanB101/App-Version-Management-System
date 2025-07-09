@@ -36,10 +36,6 @@ fun main() {
     )
     AppService.uploadNewVersion(appId, version2)
 
-    println("\n=== Install Support Check ===")
-    println("Device1 can install v2: ${device1.osVersion >= version2.minSupportedOsVersion}")
-    println("Device2 can install v2: ${device2.osVersion >= version2.minSupportedOsVersion}")
-
     println("\n=== checkForInstall() ===")
     println("Device1 (direct version check): ${RolloutService.checkForInstall(version2, device1)}")
     println("Device2 (direct version check): ${RolloutService.checkForInstall(version2, device2)}")
@@ -76,11 +72,11 @@ fun main() {
     println("Device2: ${RolloutService.isAppVersionSupported(app, version2.versionCode, device2, betaStrategy)}")
     println("Device3: ${RolloutService.isAppVersionSupported(app, version2.versionCode, device3, betaStrategy)}")
 
-    println("\n=== Manual executeTask (install v2 on device2) ===")
-    TaskExecutor.executeTask("install", device2, toVersion = version2)
+    println("\n=== Manual executeTask (install latest version on device2) ===")
+    TaskExecutor.executeTask(TaskMode.INSTALL, app, device2)
 
-    println("\n=== Manual executeTask (update device1 from v1 to v2) ===")
-    TaskExecutor.executeTask("update", device1, fromVersion = version1, toVersion = version2)
+    println("\n=== Manual executeTask (update device1 from v1 to latest) ===")
+    TaskExecutor.executeTask(TaskMode.UPDATE, app, device1, installedVersionCode = version1.versionCode)
 
     println("\n=== releaseVersion: UPDATE mode to 50% devices ===")
     RolloutService.releaseVersion(
@@ -88,7 +84,7 @@ fun main() {
         targetVersionCode = version2.versionCode,
         devices = allDevices,
         strategy = percentStrategy,
-        mode = "update"
+        mode = TaskMode.UPDATE
     )
 
     println("\n=== releaseVersion: INSTALL mode to beta devices ===")
@@ -97,7 +93,7 @@ fun main() {
         targetVersionCode = version2.versionCode,
         devices = allDevices,
         strategy = betaStrategy,
-        mode = "install"
+        mode = TaskMode.INSTALL
     )
 
     println("\nDone.")

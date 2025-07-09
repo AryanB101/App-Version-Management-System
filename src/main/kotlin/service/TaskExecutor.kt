@@ -1,46 +1,58 @@
 package service
 
-import model.AppVersion
+import model.App
 import model.Device
+import model.TaskMode
 import task.TaskInterface
 
 object TaskExecutor {
+
     fun execute(task: TaskInterface) {
         task.execute()
     }
 
     fun executeTask(
-        mode: String,
+        mode: TaskMode,
+        app: App,
         device: Device,
-        fromVersion: AppVersion? = null,
-        toVersion: AppVersion
+        installedVersionCode: String? = null
     ) {
-        if (device.deviceId.isBlank()) {
-            println("Invalid device ID")
+        val toVersion = app.latestVersion
+        if (toVersion == null) {
+            println("No version available for app ${app.appName}")
             return
         }
 
-        if (toVersion.versionCode.isBlank()) {
-            println("Invalid toVersion")
-            return
-        }
-
-        val task = when (mode.lowercase()) {
-            "install" -> {
-                TaskFactory.createInstallTask(device, toVersion)
-            }
-            "update" -> {
-                if (fromVersion == null) {
-                    println("Cannot perform update: fromVersion is null")
+        when (mode) {
+            TaskMode.INSTALL -> {
+                if (!RolloutService.checkForInstall(toVersion, device)) {
+                    println("Device ${device.deviceId} not compatible with version ${toVersion.versionCode}")
                     return
                 }
-                TaskFactory.createUpdateTask(device, fromVersion, toVersion)
+                val task = TaskFactory.createInstallTask(device, toVersion)
+                execute(task)
             }
-            else -> {
-                println("Unknown task type: $mode")
-                return
+
+            TaskMode.UPDATE -> {
+                if (installedVersionCode == null) {
+                    println("Cannot update without knowing installed version")
+                    return
+                }
+
+                val fromVersion = app.getVersion(installedVersionCode)
+                if (fromVersion == null) {
+                    println("Installed version $installedVersionCode not found in app ${app.appName}")
+                    return
+                }
+
+                if (!RolloutService.checkForUpdates(app, installedVersionCode, device)) {
+                    println("No update available for device ${device.deviceId}")
+                    return
+                }
+
+                val task = TaskFactory.createUpdateTask(device, fromVersion, toVersion)
+                execute(task)
             }
         }
-        execute(task)
     }
 }
